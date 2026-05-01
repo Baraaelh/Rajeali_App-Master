@@ -25,7 +25,7 @@
 
 ## 🛠️ التقنيات المستخدمة
 
-* Android (Java / Kotlin)
+* Android , IOS (Dart / Flutter(Framwork))
 * API Integration
 * Firebase (ممكن استخدامه للمصادقة والدردشة)
 * AI Matching Logic (قابل للتطوير)
