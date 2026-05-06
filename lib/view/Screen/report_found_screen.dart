@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:rajeali_app/controller/post_controller.dart';
-import 'package:rajeali_app/core/constant/app_routes.dart';
 import 'package:rajeali_app/core/services/location_helper.dart';
 import 'package:rajeali_app/core/shared/app_theme.dart';
 import 'package:rajeali_app/data/model/category_model.dart';
@@ -16,415 +16,759 @@ class ReportFoundScreen extends StatelessWidget {
     final RxBool isLocating = false.obs;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Get.back(),
-        ),
-        title: const Text(
-          'الإبلاغ عن شيء موجود',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Info banner
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: AppColors.success.withValues(alpha: 0.15),
-                ),
-              ),
-              child: Row(
+      backgroundColor: const Color(0xFFF0FFF4),
+      body: Column(
+        children: <Widget>[
+          // ── Header ──
+          _buildHeader(),
+
+          // ── Form ──
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(
-                    Icons.verified_rounded,
-                    color: AppColors.success.withValues(alpha: 0.7),
-                    size: 22,
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'أدخل تفاصيل الغرض — سيتم إنشاء أسئلة التحقق تلقائياً بواسطة الذكاء الاصطناعي',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                        height: 1.5,
+                  // ── Info banner ──
+                  _InfoBanner(),
+                  const SizedBox(height: 20),
+
+                  // ── اسم الواجد ──
+                  _SectionCard(
+                    icon: Icons.person_rounded,
+                    title: 'اسم الواجد',
+                    color: const Color(0xFF2E7D32),
+                    child: TextField(
+                      controller: ctrl.foundFinderNameCtrl,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
+                      decoration: _inputDeco(
+                        hint: 'اسمك أو لقبك',
+                        icon: Icons.person_rounded,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── وصف الغرض ──
+                  _SectionCard(
+                    icon: Icons.description_rounded,
+                    title: 'وصف الغرض الموجود',
+                    color: const Color(0xFF2E7D32),
+                    child: TextField(
+                      controller: ctrl.foundDescCtrl,
+                      maxLines: 4,
+                      maxLength: 500,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      decoration:
+                          _inputDeco(
+                            hint: 'مثال: هاتف أسود وجدته قرب المسجد...',
+                            icon: Icons.description_rounded,
+                          ).copyWith(
+                            counterStyle: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.grey,
+                            ),
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── التصنيف ──
+                  _SectionCard(
+                    icon: Icons.category_rounded,
+                    title: 'نوع الغرض',
+                    color: const Color(0xFF2E7D32),
+                    child: Obx(() {
+                      if (ctrl.categoriesLoading.value) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF2E7D32),
+                            ),
+                          ),
+                        );
+                      }
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ctrl.categories.map((CategoryModel cat) {
+                          final bool sel =
+                              ctrl.foundCategory.value?.id == cat.id;
+                          return GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              ctrl.foundCategory.value = cat;
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                color: sel
+                                    ? const Color(0xFF2E7D32)
+                                    : const Color(0xFFF0FFF4),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: sel
+                                      ? const Color(0xFF2E7D32)
+                                      : Colors.grey.shade300,
+                                  width: sel ? 1.5 : 1,
+                                ),
+                                boxShadow: sel
+                                    ? <BoxShadow>[
+                                        BoxShadow(
+                                          color: const Color(
+                                            0xFF2E7D32,
+                                          ).withValues(alpha: 0.25),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Text(
+                                cat.name,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: sel
+                                      ? Colors.white
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── الصورة ──
+                  _SectionCard(
+                    icon: Icons.photo_camera_rounded,
+                    title: 'صورة الغرض (اختياري)',
+                    color: const Color(0xFF2E7D32),
+                    child: Obx(
+                      () => GestureDetector(
+                        onTap: () => ctrl.pickImage(isLost: false),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: double.infinity,
+                          height: 130,
+                          decoration: BoxDecoration(
+                            color: ctrl.foundImage.value != null
+                                ? Colors.transparent
+                                : const Color(0xFFF0FFF4),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: ctrl.foundImage.value != null
+                                  ? const Color(
+                                      0xFF2E7D32,
+                                    ).withValues(alpha: 0.4)
+                                  : Colors.grey.shade200,
+                              width: ctrl.foundImage.value != null ? 2 : 1,
+                            ),
+                          ),
+                          child: ctrl.foundImage.value != null
+                              ? Stack(
+                                  children: <Widget>[
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.file(
+                                        File(ctrl.foundImage.value!.path),
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: 8,
+                                      right: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF2E7D32),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: <Widget>[
+                                            Icon(
+                                              Icons.edit_rounded,
+                                              color: Colors.white,
+                                              size: 14,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'تغيير',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Container(
+                                      width: 52,
+                                      height: 52,
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFF2E7D32,
+                                        ).withValues(alpha: 0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.add_photo_alternate_rounded,
+                                        size: 28,
+                                        color: Color(0xFF2E7D32),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'اضغط لإضافة صورة',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── الموقع ──
+                  _SectionCard(
+                    icon: Icons.location_on_rounded,
+                    title: 'موقع الإيجاد',
+                    color: const Color(0xFF2E7D32),
+                    child: Obx(
+                      () => GestureDetector(
+                        onTap: isLocating.value
+                            ? null
+                            : () async {
+                                isLocating.value = true;
+                                final result =
+                                    await LocationHelper.getCurrentLocation();
+                                if (result != null) {
+                                  ctrl.foundLocationCtrl.text = result.name;
+                                  ctrl.foundLatCtrl.text = result.lat
+                                      .toString();
+                                  ctrl.foundLngCtrl.text = result.lng
+                                      .toString();
+                                }
+                                isLocating.value = false;
+                              },
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: ctrl.foundLocationCtrl,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            decoration:
+                                _inputDeco(
+                                  hint: 'اضغط لتحديد موقعك تلقائياً',
+                                  icon: Icons.location_on_rounded,
+                                ).copyWith(
+                                  suffixIcon: isLocating.value
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(14),
+                                          child: SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Color(0xFF2E7D32),
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.my_location_rounded,
+                                          color: Color(0xFF2E7D32),
+                                          size: 22,
+                                        ),
+                                ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── التاريخ ──
+                  _SectionCard(
+                    icon: Icons.calendar_month_rounded,
+                    title: 'تاريخ الإيجاد',
+                    color: const Color(0xFF2E7D32),
+                    child: Obx(
+                      () => GestureDetector(
+                        onTap: () async {
+                          final DateTime? d = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now(),
+                            builder: (BuildContext ctx, Widget? child) => Theme(
+                              data: ThemeData.light().copyWith(
+                                colorScheme: const ColorScheme.light(
+                                  primary: Color(0xFF2E7D32),
+                                ),
+                              ),
+                              child: child!,
+                            ),
+                          );
+                          if (d != null) ctrl.foundDate.value = d;
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FFF4),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: ctrl.foundDate.value != null
+                                  ? const Color(
+                                      0xFF2E7D32,
+                                    ).withValues(alpha: 0.4)
+                                  : Colors.grey.shade200,
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                Icons.calendar_month_rounded,
+                                color: ctrl.foundDate.value != null
+                                    ? const Color(0xFF2E7D32)
+                                    : AppColors.grey,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                ctrl.foundDate.value != null
+                                    ? '${ctrl.foundDate.value!.year}/${ctrl.foundDate.value!.month.toString().padLeft(2, '0')}/${ctrl.foundDate.value!.day.toString().padLeft(2, '0')}'
+                                    : 'اختر تاريخ الإيجاد',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: ctrl.foundDate.value != null
+                                      ? AppColors.textPrimary
+                                      : AppColors.grey,
+                                ),
+                              ),
+                              const Spacer(),
+                              Icon(
+                                Icons.arrow_drop_down_rounded,
+                                color: ctrl.foundDate.value != null
+                                    ? const Color(0xFF2E7D32)
+                                    : AppColors.grey,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Error ──
+                  Obx(() {
+                    if (ctrl.error.value.isEmpty)
+                      return const SizedBox.shrink();
+                    return Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppColors.error.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: AppColors.error,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              ctrl.error.value,
+                              style: const TextStyle(
+                                color: AppColors.error,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+
+                  // ── Submit ──
+                  Obx(
+                    () => _SubmitButton(
+                      isLoading: ctrl.isSubmitting.value,
+                      onTap: () async {
+                        HapticFeedback.mediumImpact();
+                        ctrl.foundTitleCtrl.text = ctrl.foundDescCtrl.text;
+                        final bool ok = await ctrl.createFoundItem();
+                        if (ok) {
+                          Get.back();
+                        }
+                      },
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+          ),
+        ],
+      ),
+    );
+  }
 
-            // Finder name
-            _buildLabel('اسم الواجد'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: ctrl.foundFinderNameCtrl,
-              decoration: _inputDecoration(
-                hint: 'اسمك أو لقبك',
-                icon: Icons.person_rounded,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Title / description
-            _buildLabel('وصف الغرض الموجود'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: ctrl.foundDescCtrl,
-              maxLines: 4,
-              decoration: _inputDecoration(
-                hint: 'مثال: هاتف أسود وجدته قرب المسجد',
-                icon: Icons.description_rounded,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Category from API
-            _buildLabel('نوع الغرض'),
-            const SizedBox(height: 8),
-            Obx(() {
-              if (ctrl.categoriesLoading.value) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                );
-              }
-              return Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: ctrl.categories.map((CategoryModel cat) {
-                  final bool isSelected =
-                      ctrl.foundCategory.value?.id == cat.id;
-                  return GestureDetector(
-                    onTap: () => ctrl.foundCategory.value = cat,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.success : AppColors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.success
-                              : Colors.grey.shade300,
-                        ),
-                      ),
-                      child: Text(
-                        cat.name,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected
-                              ? AppColors.white
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              );
-            }),
-            const SizedBox(height: 20),
-
-            // Image
-            _buildLabel('صورة الغرض (اختياري)'),
-            const SizedBox(height: 8),
-            Obx(
-              () => GestureDetector(
-                onTap: () => ctrl.pickImage(isLost: false),
-                child: Container(
-                  width: double.infinity,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: AppColors.greyLight,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: ctrl.foundImage.value != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.file(
-                            File(ctrl.foundImage.value!.path),
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          ),
-                        )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const <Widget>[
-                            Icon(
-                              Icons.add_photo_alternate_rounded,
-                              size: 36,
-                              color: AppColors.grey,
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'اضغط لاختيار صورة',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Location
-            _buildLabel('موقع الإيجاد'),
-            const SizedBox(height: 8),
-            Obx(
-              () => GestureDetector(
-                onTap: isLocating.value
-                    ? null
-                    : () async {
-                        isLocating.value = true;
-                        final result =
-                            await LocationHelper.getCurrentLocation();
-                        if (result != null) {
-                          ctrl.foundLocationCtrl.text = result.name;
-                          ctrl.foundLatCtrl.text = result.lat.toString();
-                          ctrl.foundLngCtrl.text = result.lng.toString();
-                        }
-                        isLocating.value = false;
-                      },
-                child: AbsorbPointer(
-                  child: TextField(
-                    controller: ctrl.foundLocationCtrl,
-                    decoration:
-                        _inputDecoration(
-                          hint: 'اضغط لتحديد موقعك تلقائياً',
-                          icon: Icons.location_on_rounded,
-                        ).copyWith(
-                          suffixIcon: isLocating.value
-                              ? const Padding(
-                                  padding: EdgeInsets.all(14),
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.my_location_rounded,
-                                  color: AppColors.primary,
-                                  size: 22,
-                                ),
-                        ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Date
-            _buildLabel('تاريخ الإيجاد'),
-            const SizedBox(height: 8),
-            Obx(
-              () => GestureDetector(
-                onTap: () async {
-                  final DateTime? d = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                  );
-                  if (d != null) ctrl.foundDate.value = d;
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.greyLight,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      const Icon(
-                        Icons.calendar_month_rounded,
-                        color: AppColors.grey,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        ctrl.foundDate.value != null
-                            ? '${ctrl.foundDate.value!.year}/${ctrl.foundDate.value!.month}/${ctrl.foundDate.value!.day}'
-                            : 'اختر التاريخ',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: ctrl.foundDate.value != null
-                              ? AppColors.textPrimary
-                              : AppColors.grey,
-                        ),
-                      ),
-                      const Spacer(),
-                      const Icon(
-                        Icons.arrow_drop_down_rounded,
-                        color: AppColors.grey,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Error
-            Obx(() {
-              if (ctrl.error.value.isEmpty) return const SizedBox.shrink();
-              return Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.error.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    const Icon(
-                      Icons.error_outline_rounded,
-                      color: AppColors.error,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        ctrl.error.value,
-                        style: const TextStyle(
-                          color: AppColors.error,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-
-            // Submit
-            Obx(
-              () => SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton.icon(
-                  onPressed: ctrl.isSubmitting.value
-                      ? null
-                      : () async {
-                          // Use desc as title for API
-                          ctrl.foundTitleCtrl.text = ctrl.foundDescCtrl.text;
-                          final bool ok = await ctrl.createFoundItem();
-                          if (ok) {
-                            Get.back();
-                            Get.snackbar(
-                              'تم بنجاح ✅',
-                              'تم نشر البلاغ — ستُنشأ أسئلة التحقق تلقائياً',
-                              snackPosition: SnackPosition.BOTTOM,
-                              backgroundColor: AppColors.success.withValues(
-                                alpha: 0.1,
-                              ),
-                              colorText: AppColors.success,
-                            );
-                          }
-                        },
-                  icon: ctrl.isSubmitting.value
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.send_rounded, size: 20),
-                  label: Text(
-                    ctrl.isSubmitting.value ? 'جاري النشر...' : 'نشر البلاغ',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: AppColors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ),
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[
+            Color(0xFF1B5E20),
+            Color(0xFF2E7D32),
+            Color(0xFF43A047),
           ],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 20, 20),
+          child: Row(
+            children: <Widget>[
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                onPressed: () => Get.back(),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.handshake_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'الإبلاغ عن موجود',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    'ساعد في إيصال الغرض لصاحبه',
+                    style: TextStyle(fontSize: 11, color: Colors.white70),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildLabel(String text) => Text(
-    text,
-    style: const TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      color: AppColors.textPrimary,
-    ),
-  );
-
-  InputDecoration _inputDecoration({
+  static InputDecoration _inputDeco({
     required String hint,
     required IconData icon,
   }) {
     return InputDecoration(
       hintText: hint,
-      prefixIcon: Icon(icon, color: AppColors.grey, size: 22),
+      hintStyle: const TextStyle(color: AppColors.grey, fontSize: 13),
+      prefixIcon: Icon(icon, color: AppColors.grey, size: 20),
       filled: true,
-      fillColor: AppColors.greyLight,
+      fillColor: const Color(0xFFF0FFF4),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: Colors.grey.shade200),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: Colors.grey.shade200),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Info Banner
+// ─────────────────────────────────────────
+class _InfoBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF2E7D32).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.psychology_rounded,
+              color: Color(0xFF2E7D32),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'سيتم إنشاء أسئلة التحقق تلقائياً بواسطة الذكاء الاصطناعي\nسيجيب عليها صاحب الغرض للتحقق من ملكيته',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                height: 1.6,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Section Card
+// ─────────────────────────────────────────
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.child,
+  });
+  final IconData icon;
+  final String title;
+  final Color color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icon, color: color, size: 17),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Submit Button
+// ─────────────────────────────────────────
+class _SubmitButton extends StatefulWidget {
+  const _SubmitButton({required this.isLoading, required this.onTap});
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  @override
+  State<_SubmitButton> createState() => _SubmitButtonState();
+}
+
+class _SubmitButtonState extends State<_SubmitButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.96,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => !widget.isLoading ? _ctrl.forward() : null,
+      onTapUp: (_) {
+        _ctrl.reverse();
+        if (!widget.isLoading) widget.onTap();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: <Color>[Color(0xFF1B5E20), Color(0xFF2E7D32)],
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: const Color(0xFF2E7D32).withValues(alpha: 0.4),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Center(
+            child: widget.isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 10),
+                      Text(
+                        'نشر البلاغ',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }

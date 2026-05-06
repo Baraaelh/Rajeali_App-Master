@@ -27,7 +27,8 @@ import 'package:rajeali_app/view/screens/main_navigation_screen.dart';
 late final SharedPreferences sharedPrefs;
 
 void main() async {
-  final WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  final WidgetsBinding widgetsBinding =
+      WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   // Pre-initialize & cache SharedPreferences to avoid MissingPluginException on hot restart
@@ -49,26 +50,76 @@ class MyApp extends StatelessWidget {
       locale: const Locale('ar', 'SA'),
       fallbackLocale: const Locale('ar', 'SA'),
       theme: AppTheme.lightTheme,
-      initialRoute: AppRoutes.splash,
+      initialRoute: AppRoutes.onboarding,
       getPages: <GetPage<dynamic>>[
-        GetPage<dynamic>(name: AppRoutes.splash, page: () => const SplashScreen()),
-        GetPage<dynamic>(name: AppRoutes.onboarding, page: () => const OnboardingScreen()),
-        GetPage<dynamic>(name: AppRoutes.register, page: () => const RegisterScreen()),
-        GetPage<dynamic>(name: AppRoutes.login, page: () => const LoginScreen()),
-        GetPage<dynamic>(name: AppRoutes.forgotPassword, page: () => const ForgotPasswordScreen()),
-        GetPage<dynamic>(name: AppRoutes.home, page: () => const MainNavigationScreen()),
-        GetPage<dynamic>(name: AppRoutes.allItems, page: () => const AllItemsScreen()),
-        GetPage<dynamic>(name: AppRoutes.profile, page: () => const ProfileScreen()),
-        GetPage<dynamic>(name: AppRoutes.reportLost, page: () => const ReportLostScreen()),
-        GetPage<dynamic>(name: AppRoutes.reportFound, page: () => const ReportFoundScreen()),
-        GetPage<dynamic>(name: AppRoutes.postDetail, page: () => const PostDetailScreen()),
-        GetPage<dynamic>(name: AppRoutes.verification, page: () => const VerificationScreen()),
-        GetPage<dynamic>(name: AppRoutes.chat, page: () => const ChatListScreen()),
-        GetPage<dynamic>(name: AppRoutes.chatRoom, page: () => const ChatRoomScreen()),
-        GetPage<dynamic>(name: AppRoutes.notifications, page: () => const NotificationsScreen()),
-        GetPage<dynamic>(name: AppRoutes.admin, page: () => const AdminScreen()),
-        GetPage(name: AppRoutes.imageMatch, page: () => const ImageMatchScreen()),
-
+        GetPage<dynamic>(
+          name: AppRoutes.splash,
+          page: () => const SplashScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.onboarding,
+          page: () => const OnboardingScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.register,
+          page: () => const RegisterScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.login,
+          page: () => const LoginScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.forgotPassword,
+          page: () => const ForgotPasswordScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.home,
+          page: () => const MainNavigationScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.allItems,
+          page: () => const AllItemsScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.profile,
+          page: () => const ProfileScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.reportLost,
+          page: () => const ReportLostScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.reportFound,
+          page: () => const ReportFoundScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.postDetail,
+          page: () => const PostDetailScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.verification,
+          page: () => const VerificationScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.chat,
+          page: () => const ChatListScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.chatRoom,
+          page: () => const ChatRoomScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.notifications,
+          page: () => const NotificationsScreen(),
+        ),
+        GetPage<dynamic>(
+          name: AppRoutes.admin,
+          page: () => const AdminScreen(),
+        ),
+        GetPage(
+          name: AppRoutes.imageMatch,
+          page: () => const ImageMatchScreen(),
+        ),
       ],
     );
   }

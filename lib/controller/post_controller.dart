@@ -149,6 +149,8 @@ class PostController extends GetxController {
       debugPrint('🆕 Lost item created with ID: ${newItem.id}');
       _clearLostForm();
       await fetchLostItems();
+
+      // ✅ صاحب المفقود — يدور على match ولو لاقى يوديه للتحقق
       await _checkMatchesAfterPost(newItem.id, isLost: true);
       return true;
     } on DioException catch (e) {
@@ -231,7 +233,10 @@ class PostController extends GetxController {
       debugPrint('🆕 Found item created with ID: ${newItem.id}');
       _clearFoundForm();
       await fetchFoundItems();
-      await _checkMatchesAfterPost(newItem.id, isLost: false);
+
+      // ✅ الواجد — بس يعرض dialog "تم النشر، انتظر صاحب الغرض"
+      // لا يوديه لشاشة التحقق لأنه هو مش المطلوب منه يجاوب أسئلة
+      await _notifyFounderAfterPost(newItem.id);
       return true;
     } on DioException catch (e) {
       error.value = _api.extractError(e);
@@ -261,6 +266,8 @@ class PostController extends GetxController {
   // ═══════════════════════════════════════
   //  AUTO MATCH AFTER POST
   // ═══════════════════════════════════════
+
+  /// صاحب المفقود — يدور على match ولو لاقى يوديه للتحقق
   Future<void> _checkMatchesAfterPost(
     int itemId, {
     required bool isLost,
@@ -273,16 +280,7 @@ class PostController extends GetxController {
         if (matches.isNotEmpty) {
           await Future<void>.delayed(const Duration(milliseconds: 800));
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showMatchDialog(matches.length, itemId: itemId, isLost: true);
-          });
-        }
-      } else {
-        final List<LostItemModel> results = await searchLostForFound(itemId);
-        debugPrint('✅ Results found: ${results.length}');
-        if (results.isNotEmpty) {
-          await Future<void>.delayed(const Duration(milliseconds: 800));
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showMatchDialog(results.length, itemId: itemId, isLost: false);
+            _showLostMatchDialog(matches.length, itemId: itemId);
           });
         }
       }
@@ -291,22 +289,37 @@ class PostController extends GetxController {
     }
   }
 
-  void _showMatchDialog(
-    int count, {
-    required int itemId,
-    required bool isLost,
-  }) {
+  /// الواجد — بس يعلمه إن بلاغه اتنشر وفي أشخاص ممكن يتواصلوا معه
+  Future<void> _notifyFounderAfterPost(int itemId) async {
+    try {
+      final List<LostItemModel> results = await searchLostForFound(itemId);
+      debugPrint('✅ Lost items found for match: ${results.length}');
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (results.isNotEmpty) {
+          // في أشخاص فاقدين نفس الغرض — أعلم الواجد
+          _showFounderNotifyDialog(results.length);
+        }
+        // لو ما في matches — ما يطلع أي dialog، البلاغ اتنشر بهدوء
+      });
+    } catch (e) {
+      debugPrint('❌ Founder notify error: $e');
+    }
+  }
+
+  /// Dialog لصاحب المفقود — يوديه للتحقق
+  void _showLostMatchDialog(int count, {required int itemId}) {
     Get.dialog(
       Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Container(
-                width: 70,
-                height: 70,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
                   color: const Color(0xFF43A047).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
@@ -322,11 +335,15 @@ class PostController extends GetxController {
                 'وجدنا تطابق! 🎉',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
-                'يوجد $count ${count == 1 ? 'غرض مشابه' : 'أغراض مشابهة'} لبلاغك',
+                'يوجد $count ${count == 1 ? 'غرض مشابه' : 'أغراض مشابهة'} لبلاغك\nأجب على أسئلة التحقق لإثبات ملكيتك',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF757575)),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF757575),
+                  height: 1.6,
+                ),
               ),
               const SizedBox(height: 24),
               Row(
@@ -348,14 +365,10 @@ class PostController extends GetxController {
                     child: ElevatedButton(
                       onPressed: () {
                         Get.back();
-                        final dynamic firstMatch = isLost
-                            ? lostMatches.first
-                            : foundSearchResults.first;
+                        // ✅ صاحب المفقود يجاوب أسئلة الـ found item
                         Get.toNamed(
                           AppRoutes.verification,
-                          arguments: isLost
-                              ? lostMatches.first
-                              : foundSearchResults.first,
+                          arguments: lostMatches.first, // FoundItemModel
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -368,12 +381,78 @@ class PostController extends GetxController {
                         ),
                       ),
                       child: const Text(
-                        'عرض التطابق',
+                        'التحقق الآن',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  /// Dialog للواجد — فقط إعلام، بدون توجيه للتحقق
+  void _showFounderNotifyDialog(int count) {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1976D2).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.notifications_active_rounded,
+                  color: Color(0xFF1976D2),
+                  size: 38,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'تم نشر بلاغك! 📢',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'يوجد $count ${count == 1 ? 'شخص يبحث' : 'أشخاص يبحثون'} عن غرض مشابه\nسيتواصلون معك قريباً للتحقق من ملكيتهم',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF757575),
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1976D2),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 46),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'حسناً، سأنتظر',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
               ),
             ],
           ),
